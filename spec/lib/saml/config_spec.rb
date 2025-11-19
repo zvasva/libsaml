@@ -8,9 +8,12 @@ describe Saml::Config do
   let(:certificate_file) {File.join('spec', 'fixtures', 'certificate.pem')}
   let(:certificate) {OpenSSL::X509::Certificate.new(File.read(certificate_file))}
 
+  let(:certificate_chain_file) {File.join('spec', 'fixtures', 'certificate_chain.pem')}
+
   after do
     Saml::Config.ssl_private_key = nil
     Saml::Config.ssl_certificate = nil
+    Saml::Config.ssl_certificate_chain = nil
   end
 
 
@@ -47,15 +50,44 @@ describe Saml::Config do
   end
 
   describe '#ssl_certificate_file' do
-    it 'initializes an OpenSSL::X509::Certificate' do
-      expect(OpenSSL::X509::Certificate).to receive(:new).with File.read(certificate_file)
-      Saml::Config.ssl_certificate_file = certificate_file
+    context 'with a single certificate' do
+      it 'sets #ssl_certificate' do
+        Saml::Config.ssl_certificate_file = certificate_file
+        expect(Saml::Config.ssl_certificate).to be_a(OpenSSL::X509::Certificate)
+      end
+
+      it 'sets #ssl_certificate_chain to nil' do
+        Saml::Config.ssl_certificate_file = certificate_file
+        expect(Saml::Config.ssl_certificate_chain).to be_nil
+      end
     end
 
-    it 'sets #ssl_certificate' do
-      allow(OpenSSL::X509::Certificate).to receive(:new).and_return 'cert'
-      Saml::Config.ssl_certificate_file = certificate_file
-      expect(Saml::Config.ssl_certificate).to eq 'cert'
+    context 'with a certificate bundle (cert + chain)' do
+      it 'sets #ssl_certificate to the first certificate' do
+        Saml::Config.ssl_certificate_file = certificate_chain_file
+        expect(Saml::Config.ssl_certificate).to be_a(OpenSSL::X509::Certificate)
+        expect(Saml::Config.ssl_certificate.subject.to_s).to include('ClientCert')
+      end
+
+      it 'sets #ssl_certificate_chain to remaining certificates' do
+        Saml::Config.ssl_certificate_file = certificate_chain_file
+        expect(Saml::Config.ssl_certificate_chain).to be_an(Array)
+        expect(Saml::Config.ssl_certificate_chain.length).to eq 1
+        expect(Saml::Config.ssl_certificate_chain.first).to be_a(OpenSSL::X509::Certificate)
+        expect(Saml::Config.ssl_certificate_chain.first.subject.to_s).to include('IntermediateCert')
+      end
+    end
+
+    context 'with nil or empty' do
+      it 'sets both to nil when given nil' do
+        Saml::Config.ssl_certificate_file = nil
+        expect(Saml::Config.ssl_certificate).to be_nil
+        expect(Saml::Config.ssl_certificate_chain).to be_nil
+
+        Saml::Config.ssl_certificate_file = ''
+        expect(Saml::Config.ssl_certificate).to be_nil
+        expect(Saml::Config.ssl_certificate_chain).to be_nil
+      end
     end
   end
 
@@ -63,6 +95,14 @@ describe Saml::Config do
     it 'sets #ssl_certificate' do
       Saml::Config.ssl_certificate = certificate
       expect(Saml::Config.ssl_certificate).to eq certificate
+    end
+  end
+
+  describe '#ssl_certificate_chain' do
+    it 'sets #ssl_certificate_chain' do
+      chain = [certificate, certificate]
+      Saml::Config.ssl_certificate_chain = chain
+      expect(Saml::Config.ssl_certificate_chain).to eq chain
     end
   end
 

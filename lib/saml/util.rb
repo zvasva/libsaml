@@ -213,6 +213,9 @@ module Saml
         return http unless Saml::Config.ssl_private_key.present?
         http.key  = Saml::Config.ssl_private_key
         http.cert = Saml::Config.ssl_certificate
+        if Saml::Config.ssl_certificate_chain.present?
+          http.extra_chain_cert = Saml::Config.ssl_certificate_chain
+        end
         http
       end
     end

@@ -252,6 +252,32 @@ describe Saml::Util do
         expect(net_http).to receive(:key=).with('key')
         post_request
       end
+
+      it "doesn't set extra_chain_cert when no chain is configured" do
+        expect(net_http).not_to receive(:extra_chain_cert=)
+        post_request
+      end
+    end
+
+    context 'with certificate chain' do
+      before :each do
+        Saml::Config.ssl_certificate = 'cert'
+        Saml::Config.ssl_private_key = 'key'
+        Saml::Config.ssl_certificate_chain = ['chain_cert']
+
+        allow(Net::HTTP).to receive(:new).and_return(net_http)
+      end
+
+      after :each do
+        Saml::Config.ssl_certificate = nil
+        Saml::Config.ssl_private_key = nil
+        Saml::Config.ssl_certificate_chain = nil
+      end
+
+      it 'sets the extra_chain_cert' do
+        expect(net_http).to receive(:extra_chain_cert=).with(['chain_cert'])
+        post_request
+      end
     end
 
     context 'with http_ca_file' do

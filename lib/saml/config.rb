@@ -12,6 +12,9 @@ module Saml
     mattr_accessor :ssl_certificate
     @@ssl_certificate = nil
 
+    mattr_accessor :ssl_certificate_chain
+    @@ssl_certificate_chain = nil
+
     mattr_accessor :http_ca_file
     @@http_ca_file = nil
 
@@ -52,9 +55,15 @@ module Saml
 
     def ssl_certificate_file=(certificate_file)
       if certificate_file.present?
-        self.ssl_certificate = OpenSSL::X509::Certificate.new File.read(certificate_file)
+        certs = File.read(certificate_file).scan(
+          /-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m
+        ).map { |pem| OpenSSL::X509::Certificate.new(pem) }
+
+        self.ssl_certificate = certs.first
+        self.ssl_certificate_chain = certs.length > 1 ? certs[1..-1] : nil
       else
         self.ssl_certificate = nil
+        self.ssl_certificate_chain = nil
       end
     end
     module_function :ssl_certificate_file=
